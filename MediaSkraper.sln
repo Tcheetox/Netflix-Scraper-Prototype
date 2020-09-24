@@ -4,8 +4,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaSkraper", "MediaSkraper\MediaSkraper.csproj", "{6FAB9987-50EB-4919-BC56-478AEFE1F80B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{90513AA8-3FF2-461C-ACC9-023E3727C52F} = {90513AA8-3FF2-461C-ACC9-023E3727C52F}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities", "..\Utilities\Utilities\Utilities.csproj", "{90513AA8-3FF2-461C-ACC9-023E3727C52F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities", "Utilities\Utilities\Utilities.csproj", "{90513AA8-3FF2-461C-ACC9-023E3727C52F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
