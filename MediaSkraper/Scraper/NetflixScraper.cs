@@ -42,8 +42,7 @@ namespace MediaSkraper.Scraper
                     netflixDriver = new Driver(defaultSleepTime, Path.Combine(Environment.CurrentDirectory, "NetflixCache"), null, scraperTask);
                     netflixDriver.NavigateSafely(netflixBaseUrl);
 
-                    // Skip profile then explore content
-                    // TODO: add warning when not logged-in
+                    // Login check, skip profile then explore content
                     CheckLogin();
                     SkipProfileSelection();
                     netflixDriver.ScrollToBottom(defaultSleepTime * 3);
