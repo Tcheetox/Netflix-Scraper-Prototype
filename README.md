@@ -37,4 +37,3 @@ webElement.Safely((e) => e.FindElements(By.ClassName("CLASSNAME")))
 ```
 
 [![Github All Releases](https://img.shields.io/github/downloads/atom/atom/total.svg?style=flat)]()
-[![ChromeDriver Version](https://img.shields.io/npm/v/npm.svg?style=flat)]()
