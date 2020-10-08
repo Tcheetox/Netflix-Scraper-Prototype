@@ -6,7 +6,7 @@ The application has been built to easily integrate additional scrapers such as f
 I built this scraper out of fun and curiosity. Use at your own risk.
 
 # Get started
-The collected information is stored in `ConcurrentBag<IMedia>()`.
+The collected information is stored in `ConcurrentBag<IMedia>()`. You can specify locations to store log files and the ChromeDriver cache in the App.config.
 
 ## Clone
 * Clone this repo to your local machine using https://github.com/Tcheetox/Netflix-Scraper-Prototype.git
@@ -20,19 +20,18 @@ The collected information is stored in `ConcurrentBag<IMedia>()`.
 
 # Usage example
 1. Instantiate NetflixScraper
-: ```
+```
 NetflixScraper netflixScraper = new NetflixScraper(MediaBag);
 netflixScraper.Start();
 netflixScraper.Wait();
 netflixScraper.Stop();
 ```
 2. Driver wrapper class
-: ```
+```
 netflixDriver.NavigateSafely($"https://www.netflix.com");
 netflixDriver.TryFindElement((driver) => driver.FindElementByClassName("CLASSNAME"), out IWebElement element)
 ```
 3. WebElement wrapper class
-:
 ```
 webElement.Safely((e) => e.FindElements(By.ClassName("CLASSNAME")))
 ```
