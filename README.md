@@ -32,6 +32,7 @@ netflixDriver.NavigateSafely($"https://www.netflix.com");
 netflixDriver.TryFindElement((driver) => driver.FindElementByClassName("CLASSNAME"), out IWebElement element)
 ```
 3. WebElement wrapper class
-: ```
+:
+```
 webElement.Safely((e) => e.FindElements(By.ClassName("CLASSNAME")))
 ```
