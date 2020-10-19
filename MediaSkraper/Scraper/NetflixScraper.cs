@@ -39,7 +39,10 @@ namespace MediaSkraper.Scraper
             scraperTask = new CancellableTask((token) =>
                 {
                     // Initialize and navigation
-                    netflixDriver = new Driver(defaultSleepTime, Path.Combine(Environment.CurrentDirectory, "NetflixCache"), null, scraperTask);
+                    string cacheDirectory = ConfigurationManager.AppSettings["NetflixCacheDirectory"];
+                    if (string.IsNullOrEmpty(cacheDirectory))
+                        cacheDirectory = Path.Combine(Environment.CurrentDirectory, "NetflixCache");
+                    netflixDriver = new Driver(defaultSleepTime, cacheDirectory, null, scraperTask);
                     netflixDriver.NavigateSafely(netflixBaseUrl);
 
                     // Login check, skip profile then explore content
@@ -255,22 +258,22 @@ namespace MediaSkraper.Scraper
 
         public void Start()
         {
-            scraperTask?.Start();
+            scraperTask.Start();
         }
 
         public void Stop()
         {
-            scraperTask?.Stop(true);
+            scraperTask.Stop();
         }
 
         public void Terminate() 
         {
-            scraperTask?.Terminate();
+            scraperTask.Terminate();
         }
 
         public void Wait()
         {
-            scraperTask?.Wait();
+            scraperTask.Wait();
         }
     }
 }

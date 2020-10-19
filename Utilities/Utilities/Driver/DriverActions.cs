@@ -84,8 +84,7 @@ namespace Utilities.Driver
                 Url = url;
                 driver.Navigate();
                 if (!string.IsNullOrEmpty(lookup))
-                    while ((string.IsNullOrEmpty(Url) || !Url.Contains(lookup) || ExecuteScript("return document.readyState").ToString() != "complete")
-                    && (cancellableTask == null || !cancellableTask.IsCancelled))
+                    while (string.IsNullOrEmpty(Url) || !Url.Contains(lookup) || ExecuteScript("return document.readyState").ToString() != "complete")
                         Sleep(50);
             }), null);
         }
@@ -110,7 +109,7 @@ namespace Utilities.Driver
         public void ScrollToBottom(int cautiousWaitTime = 0)
         {
             int previousScrollHeight = 0;
-            while ((cancellableTask == null) || !cancellableTask.IsCancelled)
+            while (!cancellableTask.IsCancelled)
             {
                 int scrollHeight = int.Parse(ExecuteScript($"return document.body.scrollHeight").ToString());
                 if (scrollHeight == previousScrollHeight)

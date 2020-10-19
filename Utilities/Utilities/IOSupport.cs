@@ -32,16 +32,31 @@ namespace Utilities
                         fs.Write(info, 0, info.Length);
                     }
                     File.Delete(testFile);
+                    return true;
                 }
-                else
+                else if (!string.IsNullOrEmpty(directoryPath))
+                {
                     Directory.CreateDirectory(directoryPath);
-                return true;
+                    return true;
+                }
+
+                return false;
             }
             catch (Exception ex)
             {
                 Log.Write(ex, $"An issue occured while assessing R&W permission in {directoryPath}", LogEntry.SeverityType.Medium);
                 return false;
             }
+        }
+
+        public static bool CompareFiles(string sourcePath, string targetPath) // This function assumes that both file exist!
+        {
+            FileInfo source = new FileInfo(sourcePath);
+            FileInfo target = new FileInfo(targetPath);
+
+            if (source.Length != target.Length || source.LastWriteTime != target.LastWriteTime)
+                return false;
+            else return true;
         }
     }
 }

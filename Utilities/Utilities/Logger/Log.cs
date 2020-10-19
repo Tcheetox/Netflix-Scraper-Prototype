@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace Utilities.Logger
 {
-    public static class Log
+    public static class Log // TODO: could implement IDisposable
     {
         public static bool Started { get; private set; }
 
@@ -37,7 +37,13 @@ namespace Utilities.Logger
                     while (!((CancellationToken)token).IsCancellationRequested)
                     {
                         PurgeQueue(directoryPath);
-                        Thread.Sleep(intervalBetweenPurge);
+                        if (applicationExiting)
+                        {
+                            Write($"Application {Process.GetCurrentProcess().ProcessName} terminated", LogEntry.SeverityType.High);
+                            PurgeQueue(directoryPath);
+                            return;
+                        }
+                        task.SleepOrExit(intervalBetweenPurge);
                     }
                 });
                 task.Start();
@@ -46,15 +52,14 @@ namespace Utilities.Logger
                 Write($"Application {Process.GetCurrentProcess().ProcessName} started (logging disabled)");
         }
 
-        public static void Stop(bool applicationExiting = false)
+        private static bool applicationExiting = false;
+        public static void Stop(bool _applicationExiting = false)
         {
-            if (applicationExiting)
-                Write($"Application {Process.GetCurrentProcess().ProcessName} terminated", LogEntry.SeverityType.High);
-            if (Started)
-            {
-                Thread.Sleep(intervalBetweenPurge);
-                task.Stop(true);
-            }
+            applicationExiting = _applicationExiting;
+            if (!applicationExiting)
+                task.Stop();
+            else
+                task.Wait();
         }
 
         private static void PurgeQueue(string directoryPath)

@@ -1,40 +1,24 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Utilities.Logger;
 
 namespace Utilities
 {
-    // TODO: add static metadata storage
-
     /// <summary>
     /// Support class to create tasks that can be canceled or restarted
     /// </summary>
     public class CancellableTask 
     {
-        private string taskOwner;
-        public string TaskOwner
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(taskOwner))
-                    return new StackTrace().GetFrame(2).GetMethod().ReflectedType.Name;
-                else return taskOwner;
-            }
-            set
-            {
-                taskOwner = value;
-            }
-        }
-
+        public string TaskOwner;
         public event EventHandler ExceptionRaised;
-
-        private CancellationTokenSource CancellationTokenSource { get; set; }
-        private Task task;
+        public event EventHandler StatusChanged;
+        public Task Task { get; private set; }
+        private CancellationTokenSource cancellationTokenSource { get; set; }
         private readonly object taskLock = new object();
-        private object action;
-        private const int sleepInterval = 30;
+        private Action<object> action;
 
         protected virtual void OnExceptionRaised(EventArgs e)
         {
@@ -43,19 +27,15 @@ namespace Utilities
 
         public void SleepOrExit(int ms)
         {
-            if (ms <= 0) 
-                return;
-
-            if (CancellationTokenSource == null)
-                Thread.Sleep(ms);
-            else
+            try
             {
-                int timeSlept = 0;
-                while (timeSlept < ms && CancellationTokenSource != null && !CancellationTokenSource.IsCancellationRequested)
-                {
-                    Thread.Sleep(sleepInterval);
-                    timeSlept += sleepInterval;
-                }
+                if (!cancellationTokenSource.IsCancellationRequested)
+                    Task.Wait(ms, cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Write($"Task '{TaskOwner}' cancelled while awaiting for completion");
+                //Log.Write(oce, $"Task '{TaskOwner}' cancelled while awaiting for completion", LogEntry.SeverityType.Low);
             }
         }
 
@@ -63,8 +43,8 @@ namespace Utilities
         {
             get
             {
-                if (CancellationTokenSource != null)
-                    return CancellationTokenSource.IsCancellationRequested;
+                if (cancellationTokenSource != null)
+                    return cancellationTokenSource.IsCancellationRequested;
                 else return true;
             }
         }
@@ -79,27 +59,42 @@ namespace Utilities
             private set
             {
                 exception = value;
-                Status = CancellableTaskStatus.Faulted;
-                Log.Write($"Task '{TaskOwner}' faulted");
                 OnExceptionRaised(EventArgs.Empty);
             }
-        }
-
-        public CancellableTask(Action _action)
-        {
-            action = _action;
         }
 
         public CancellableTask(Action<object> _action)
         {
             action = _action;
+            TaskOwner = new StackTrace().GetFrame(1).GetMethod().ReflectedType.Name;
+            Initialize();
+            Status = CancellableTaskStatus.Created;
         }
 
-        public CancellableTaskStatus Status { get; private set; }
+        private CancellableTaskStatus status;
+        public CancellableTaskStatus Status
+        {
+            get
+            {
+                return status;
+            }
+            set
+            {
+                status = value;
+                OnStatusChanged(EventArgs.Empty);
+            }
+        }
+
+        protected virtual void OnStatusChanged(EventArgs e)
+        {
+            Log.Write($"Task '{TaskOwner}' {Status.ToString().ToLowerInvariant()}");
+            StatusChanged?.Invoke(this, e);
+        }
+
         public enum CancellableTaskStatus
         {
             Created,
-            Running,
+            Started,
             Stopped,
             Faulted,
             Terminated
@@ -107,112 +102,94 @@ namespace Utilities
 
         private void Initialize()
         {
-            task = null;
-            CancellationTokenSource = new CancellationTokenSource();
-            CancellationToken cancellationToken = CancellationTokenSource.Token;
-
-            Action<object> cancellableAction = new Action<object>((cancelled) =>
+            if (Status != CancellableTaskStatus.Created || Task == null)
             {
-                try
+                Task = null;
+                cancellationTokenSource = new CancellationTokenSource();
+                CancellationToken cancellationToken = cancellationTokenSource.Token;
+                Action<object> cancellableAction = new Action<object>((cancelled) =>
                 {
-                    if (action is Action<object> _cancellableAction)
-                        _cancellableAction.Invoke(cancelled);
-                    else
-                        ((Action)action).Invoke();
-                }
-                catch (Exception ex)
-                {
-                    Status = CancellableTaskStatus.Faulted;
-                    Exception = ex;
-                }
-            });
-
-            task = new Task(cancellableAction, cancellationToken);
-            Status = CancellableTaskStatus.Created;
+                    try
+                    {
+                        action.Invoke(cancelled);
+                        if (mustTerminate)
+                            Status = CancellableTaskStatus.Terminated;
+                        else
+                            Status = CancellableTaskStatus.Stopped;
+                    }
+                    catch (Exception ex)
+                    {
+                        Status = CancellableTaskStatus.Faulted;
+                        Exception = ex;
+                    }
+                });
+                Task = new Task(cancellableAction, cancellationToken);
+            }
         }
 
         public void Start()
         {
             lock (taskLock)
-            {
-                try
+                switch (Status)
                 {
-                    if (Status != CancellableTaskStatus.Running)
-                    {
+                    case CancellableTaskStatus.Created:
+                    case CancellableTaskStatus.Faulted:
+                    case CancellableTaskStatus.Stopped:
                         Initialize();
-                        task.Start();
-                        if (!IsRestarting)
-                            Log.Write($"Task '{TaskOwner}' started");
-                        IsRestarting = false;
-                    }
-                    else
+                        Task.Start();
+                        Status = CancellableTaskStatus.Started;
+                        break;
+                    case CancellableTaskStatus.Started:
                         Log.Write($"Task '{TaskOwner}' already running!");
+                        break;
+                    case CancellableTaskStatus.Terminated:
+                        Log.Write(new NotImplementedException($"Terminated task '{TaskOwner}' cannot be restarted!"), string.Empty);
+                        break;
                 }
-                catch (Exception ex)
-                {
-                    Status = CancellableTaskStatus.Faulted;
-                    Exception = ex;
-                }
-                Status = CancellableTaskStatus.Running;
-            }
         }
 
-        private bool IsRestarting;
         public void Restart()
         {
             lock (taskLock)
-                if (Status != CancellableTaskStatus.Terminated)
-                {
-                    IsRestarting = true;
-                    Log.Write($"Task '{TaskOwner}' restarting");
-                    Stop(true);
-                    Initialize();
-                    Start();
-                }
-                else
-                    throw new NotImplementedException("A terminated cancellable task can never be restarted!");
+            {
+                Log.Write($"Task '{TaskOwner}' restarting");
+                Stop();
+                Task.Wait();
+                Start();
+            }
         }
 
         public void Wait()
         {
-            while(IsRestarting || task != null)
-            {
-                task?.Wait();
-                Thread.Sleep(sleepInterval);
-            }
+            if (Task != null && Status != CancellableTaskStatus.Created)
+                Task.Wait();
         }
 
-        public void Stop(bool waitForTermination = false)
+        public void Stop()
         {
-            lock (taskLock)
-                if (Status == CancellableTaskStatus.Running || Status == CancellableTaskStatus.Faulted)
-                {
-                    CancellationTokenSource?.Cancel();
-                    if (task != null)
-                    {
-                        if (waitForTermination)
-                            task.Wait();
-                        if (task.IsCompleted || task.IsFaulted || task.IsCanceled)
-                            task.Dispose();
-                        Status = CancellableTaskStatus.Stopped;
-                    }
-                    if (!IsRestarting)
-                        Log.Write($"Task '{TaskOwner}' stopped");
-                }
+            lock(taskLock)
+                if ((Status == CancellableTaskStatus.Started || Status == CancellableTaskStatus.Faulted)
+                    && cancellationTokenSource != null && !cancellationTokenSource.IsCancellationRequested)
+                    cancellationTokenSource?.Cancel();
         }
 
+        private bool mustTerminate = false;
         public void Terminate()
         {
-            lock (taskLock)
+            lock(taskLock)
                 if (Status != CancellableTaskStatus.Terminated)
                 {
-                    Stop(true);
+                    mustTerminate = true;
+                    Stop();
                     action = null;
-                    task = null;
-                    CancellationTokenSource = null;
-                    Status = CancellableTaskStatus.Terminated;
-                    Log.Write($"Task '{TaskOwner}' terminated");
                 }
+        }
+
+        public static void WaitTermination(params CancellableTask[] _cancellableTasks)
+        {
+            var cancellableTasks = _cancellableTasks.Where(x => x.Status != CancellableTaskStatus.Created);
+            Task.WaitAll(cancellableTasks.Select(y => y.Task).ToArray());
+            Log.Write($"Cancellable tasks ({cancellableTasks.Count()}) properly terminated", LogEntry.SeverityType.Medium);
         }
     }
 }

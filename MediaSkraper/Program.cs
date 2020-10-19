@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -29,7 +30,11 @@ namespace MediaSkraper
             DeleteMenu(GetSystemMenu(GetConsoleWindow(), false), SC_CLOSE, MF_BYCOMMAND);
 
             // Start logging information
-            Log.Start(true, Path.Combine(Environment.CurrentDirectory,"Logs"), 10);
+            string logDirectory = ConfigurationManager.AppSettings["LogsDirectory"];
+            if (string.IsNullOrEmpty(logDirectory))
+                logDirectory = Path.Combine(Environment.CurrentDirectory, "Logs");
+
+            Log.Start(true, logDirectory, 10);
             Log.Write("Press CTRL-C to exit the application at any time!", LogEntry.SeverityType.High);
             // Start of the operations
             DataManager = new DataManager();

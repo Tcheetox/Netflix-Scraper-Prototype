@@ -92,16 +92,7 @@ namespace Utilities.Driver
 
         public void Sleep(int cautiousWaitTime = 0)
         {
-            // Define sleep time
-            int sleepTime = MinimalWaitBetweenAction;
-            if (cautiousWaitTime > 0)
-                sleepTime = cautiousWaitTime;
-
-            // Determine how to sleep
-            if (cancellableTask != null)
-                cancellableTask.SleepOrExit(sleepTime);
-            else
-                Thread.Sleep(sleepTime);
+            cancellableTask.SleepOrExit(cautiousWaitTime > 0? cautiousWaitTime : MinimalWaitBetweenAction);
         }
 
         public static bool IsEmptyEventHandler(EventHandler handler)
